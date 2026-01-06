@@ -60,7 +60,7 @@ spec:
                                 key: token
                         command: ["/bin/sh", "-c"]
                         args:
-                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-wf-demo.git /src/repo"
+                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-workflows-local-demo.git /src/repo"
                         volumeMounts:
                           - name: source-code
                             mountPath: /src
@@ -97,7 +97,7 @@ spec:
                                 key: token
                         command: ["/bin/sh", "-c"]
                         args:
-                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-wf-demo.git /src/repo"
+                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-workflows-local-demo.git /src/repo"
                         volumeMounts:
                           - name: source-code
                             mountPath: /src
