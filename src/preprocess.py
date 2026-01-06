@@ -21,6 +21,3 @@ with open(os.path.join(DATA_PATH, "test_data.pkl"), "wb") as f:
     pickle.dump((X_test, y_test), f)
 
 print(f"Data saved to {DATA_PATH}")
-
-#### hi #### 
-### test ###
