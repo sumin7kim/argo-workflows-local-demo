@@ -94,20 +94,25 @@ spec:
                     - |
                       echo "🚀 [Init] Setting up environment..."
                       
-                      # 가상환경 생성 (소스 폴더 외부에 생성하여 깔끔하게 유지)
-                      uv venv /mnt/workspace/.venv
+                      # 1. 가상환경 생성 (이미 있으면 덮어쓰기 위해 --allow-existing 추가)
+                      uv venv /mnt/workspace/.venv --allow-existing
                       
-                      # 활성화
-                      source /mnt/workspace/.venv/bin/activate
+                      # 2. 패키지 설치
+                      # [수정 1] 'source' 대신 전체 경로 사용 (쉘 호환성 해결)
+                      # [수정 2] SSL 에러 무시 옵션 추가 (--allow-insecure-host)
                       
-                      # 레포지토리에 있는 requirements.txt 설치
+                      echo "📦 Installing dependencies..."
+                      
+                      UV_FLAGS="--allow-insecure-host pypi.org --allow-insecure-host files.pythonhosted.org"
+
                       if [ -f "requirements.txt" ]; then
-                        echo "📦 Installing dependencies from requirements.txt..."
-                        uv pip install -r requirements.txt
+                        /mnt/workspace/.venv/bin/uv pip install -r requirements.txt $UV_FLAGS
                       else
                         echo "⚠️ No requirements.txt found. Installing defaults..."
-                        uv pip install pandas numpy scikit-learn
+                        /mnt/workspace/.venv/bin/uv pip install pandas numpy scikit-learn joblib $UV_FLAGS
                       fi
+                      
+                      echo "✅ Environment setup complete."
                     volumeMounts:
                     - name: work-pvc
                       mountPath: /mnt/workspace
@@ -121,12 +126,12 @@ spec:
                     args:
                     - |
                       echo "🔥 [Run] Executing target script..."
-                      source /mnt/workspace/.venv/bin/activate
                       
-                      # ▼▼▼ [수정 포인트] 실행할 파일 경로를 지정하세요 ▼▼▼
-                      # 예: 레포지토리 루트의 main.py 실행
+                      # [수정] source 대신 가상환경 내의 python을 직접 호출
+                      PYTHON_EXEC="/mnt/workspace/.venv/bin/python"
+                      
                       if [ -f "main.py" ]; then
-                        python main.py
+                        $PYTHON_EXEC main.py
                       else
                         echo "Error: main.py not found in repo!"
                         ls -al
