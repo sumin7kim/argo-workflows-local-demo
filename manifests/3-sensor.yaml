@@ -8,7 +8,7 @@ spec:
   dependencies:
     - name: demo
       eventSourceName: github-events
-      eventName: demo
+      eventName: example
   triggers:
     - template:
         name: github-workflow-trigger
