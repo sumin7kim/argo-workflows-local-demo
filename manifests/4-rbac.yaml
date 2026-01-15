@@ -6,7 +6,7 @@ metadata:
   namespace: argo
 rules:
   - apiGroups: ["argoproj.io"]
-    resources: ["workflows", "workflowtemplates"]
+    resources: ["workflows", "workflowtemplates", "workflowtaskresults"]
     verbs: ["create", "list", "watch", "get", "patch", "update", "delete"]
 ---
 # 2. 권한 연결 (RoleBinding) - default 계정에 연결
