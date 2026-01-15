@@ -1,0 +1,114 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: github-sensor
+spec:
+  template:
+    serviceAccountName: workflow-runner-sa
+  dependencies:
+    - name: github-dep
+      eventSourceName: github-webhook
+      eventName: example
+  triggers:
+    - template:
+        name: argo-wf-demo-trigger
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: ml-pipeline-
+              spec:
+                entrypoint: pipeline
+                volumes:
+                - name: workdir
+                  hostPath:
+                    path: /tmp/argo-data
+                    type: DirectoryOrCreate
+
+                templates:
+                  - name: pipeline
+                    dag:
+                      tasks:
+                        - name: preprocess
+                          template: preprocess-step
+                        - name: train
+                          dependencies: [preprocess]
+                          template: train-step
+                  
+                  # ---------------------------------------------------
+                  # 1. Preprocess Step
+                  # ---------------------------------------------------
+                  - name: preprocess-step
+                    volumes:
+                      - name: source-code
+                        emptyDir: {}
+                    
+                    initContainers:
+                      - name: git-clone
+                        image: alpine/git
+                        imagePullPolicy: IfNotPresent
+                        env:
+                          - name: GIT_SSL_NO_VERIFY
+                            value: "true"
+                          - name: GITHUB_TOKEN
+                            valueFrom:
+                              secretKeyRef:
+                                name: github-auth
+                                key: token
+                        command: ["/bin/sh", "-c"]
+                        args:
+                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-workflows-local-demo.git /src/repo"
+                        volumeMounts:
+                          - name: source-code
+                            mountPath: /src
+                    container:
+                      image: argo-demo:base-v1
+                      imagePullPolicy: IfNotPresent
+                      command: ["python", "/src/repo/src/preprocess.py"]
+                      # path: /tmp/argo-data
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /mnt/data
+                        - name: source-code
+                          mountPath: /src
+
+                  # ---------------------------------------------------
+                  # 2. Train Step
+                  # ---------------------------------------------------
+                  - name: train-step
+                    volumes:
+                      - name: source-code
+                        emptyDir: {}
+
+                    initContainers:
+                      - name: git-clone
+                        image: alpine/git
+                        imagePullPolicy: IfNotPresent
+                        env:
+                          - name: GIT_SSL_NO_VERIFY
+                            value: "true"
+                          - name: GITHUB_TOKEN
+                            valueFrom:
+                              secretKeyRef:
+                                name: github-auth
+                                key: token
+                        command: ["/bin/sh", "-c"]
+                        args:
+                          - "git clone https://sumin7kim:${GITHUB_TOKEN}@github.com/sumin7kim/argo-workflows-local-demo.git /src/repo"
+                        volumeMounts:
+                          - name: source-code
+                            mountPath: /src
+
+                    container:
+                      image: argo-demo:base-v1
+                      imagePullPolicy: IfNotPresent
+                      command: ["python", "/src/repo/src/train.py"]
+                      # path: /tmp/argo-data
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /mnt/data
+                        - name: source-code
+                          mountPath: /src
