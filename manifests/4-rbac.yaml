@@ -1,17 +1,25 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: workflow-runner-sa
----
+# 1. 권한 정의 (Role) - 이미 있다면 생략되거나 덮어씌워집니다.
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: Role
 metadata:
-  name: workflow-runner-binding
+  name: argo-events-role
+  namespace: argo
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows", "workflowtemplates"]
+    verbs: ["create", "list", "watch", "get", "patch", "update", "delete"]
+---
+# 2. 권한 연결 (RoleBinding) - default 계정에 연결
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-events-default-binding
+  namespace: argo
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
+  kind: Role
+  name: argo-events-role
 subjects:
   - kind: ServiceAccount
-    name: workflow-runner-sa
-    namespace: default
+    name: default     # <--- 핵심: 별도 계정 대신 'default'를 지정
+    namespace: argo
