@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: github-sensor
+  namespace: argo
+spec:
+  dependencies:
+    - name: demo
+      eventSourceName: github-events
+      eventName: example
+  triggers:
+    - template:
+        name: github-ml-trigger
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: ml-template-run-
+                namespace: argo
+              spec:
+                workflowTemplateRef:
+                  name: ml-job-template
+                
+                # 템플릿으로 넘겨줄 파라미터 값 매핑
+                arguments:
+                  parameters:
+                  - name: git-ref
+                    value: "will-be-replaced" # 아래 parameters에서 덮어씌워짐
+                  - name: git-sha
+                    value: "will-be-replaced"
+
+          # Webhook 데이터 -> Workflow 파라미터로 주입
+          parameters:
+            - src:
+                dependencyName: demo
+                dataKey: body.ref
+              dest: spec.arguments.parameters.0.value # git-ref
+            - src:
+                dependencyName: demo
+                dataKey: body.after
+              dest: spec.arguments.parameters.1.value # git-sha
