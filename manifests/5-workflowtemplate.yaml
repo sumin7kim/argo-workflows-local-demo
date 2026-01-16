@@ -78,25 +78,26 @@ spec:
       - |
         echo "🚀 [Init] Setting up environment..."
         
-        # 1. 가상환경 생성 (이미 있으면 덮어쓰기 위해 --allow-existing 추가)
+        # 1. 가상환경 생성
         uv venv /mnt/workspace/.venv --allow-existing
         
-        # 2. 패키지 설치
-        # [수정 1] 'source' 대신 전체 경로 사용 (쉘 호환성 해결)
-        # [수정 2] SSL 에러 무시 옵션 추가 (--allow-insecure-host)
-        
-        echo "📦 Installing dependencies..."
-        
+        # SSL 에러 무시 옵션
         UV_FLAGS="--allow-insecure-host pypi.org --allow-insecure-host files.pythonhosted.org"
 
+        echo "📦 Installing dependencies..."
+
+        # ▼▼▼ [수정 포인트] ▼▼▼
+        # 1. '/mnt/workspace/.venv/bin/uv' -> 그냥 'uv' 사용
+        # 2. '--python /mnt/workspace/.venv' 옵션으로 설치 위치 지정
+        
         if [ -f "requirements.txt" ]; then
-          /mnt/workspace/.venv/bin/uv pip install -r requirements.txt $UV_FLAGS
+          uv pip install -r requirements.txt --python /mnt/workspace/.venv $UV_FLAGS
         else
           echo "⚠️ No requirements.txt found. Installing defaults..."
-          /mnt/workspace/.venv/bin/uv pip install pandas numpy scikit-learn joblib $UV_FLAGS
+          uv pip install pandas numpy scikit-learn joblib --python /mnt/workspace/.venv $UV_FLAGS
         fi
         
-        echo "✅ Environment setup complete."
+        echo "✅ Environment setup complete."      
       volumeMounts:
       - name: work-pvc
         mountPath: /mnt/workspace
