@@ -48,6 +48,10 @@ spec:
       args:
       - |
         echo "⬇️ Cloning repository: sumin7kim/argo-workflows-local-demo..."
+        
+        # Git SSL 검증 비활성화
+        git config --global http.sslVerify false
+
         # 기존 디렉토리 정리
         rm -rf source
         
