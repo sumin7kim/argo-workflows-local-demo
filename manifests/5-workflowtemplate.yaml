@@ -11,16 +11,13 @@ spec:
     - name: git-sha
 
   entrypoint: ml-pipeline
-  
-  # 워크스페이스 볼륨 (소스코드 + 가상환경 공유)
-  volumeClaimTemplates:
-  - metadata:
-      name: work-pvc
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 2Gi
+
+  volumes:
+  - name: work-pvc
+    hostPath:
+      # 내 맥북의 실제 경로 (Docker Desktop은 /Users 경로를 기본 공유함)
+      path: /Users/sumin7kim/Desktop/argo-workflows-local-demo/artifacts
+      type: Directory
 
   templates:
   # 1. 파이프라인 정의
