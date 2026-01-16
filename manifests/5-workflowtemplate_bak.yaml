@@ -1,0 +1,124 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: ml-job-template  # <--- 이 이름을 Sensor에서 참조합니다
+  namespace: argo
+spec:
+  # 외부(Sensor)에서 받아올 파라미터 정의
+  arguments:
+    parameters:
+    - name: git-ref
+    - name: git-sha
+
+  entrypoint: ml-pipeline
+
+  volumes:
+  - name: work-pvc
+    hostPath:
+      # 내 맥북의 실제 경로 (Docker Desktop은 /Users 경로를 기본 공유함)
+      path: /Users/sumin7kim/Desktop/argo-workflows-local-demo/artifacts
+      type: Directory
+
+  templates:
+  # 1. 파이프라인 정의
+  - name: ml-pipeline
+    steps:
+    - - name: checkout
+        template: git-checkout
+    - - name: init-env
+        template: init-uv-env
+    - - name: run-task
+        template: run-repo-file
+
+  # 2. [Git Checkout] 코드를 볼륨으로 내려받음
+  - name: git-checkout
+    container:
+      image: alpine/git
+      workingDir: /mnt/workspace
+      env:
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-access
+              key: token
+      command: ["/bin/sh", "-c"]
+      args:
+      - |
+        echo "⬇️ Cloning repository: sumin7kim/argo-workflows-local-demo..."
+        
+        # Git SSL 검증 비활성화
+        git config --global http.sslVerify false
+
+        # 기존 디렉토리 정리
+        rm -rf source
+        
+        # Private Repo 접근을 위해 Token 사용 (github-access 시크릿 활용)
+        git clone https://$(GIT_TOKEN)@github.com/sumin7kim/argo-workflows-local-demo.git source
+        
+        cd source
+        # Webhook에서 전달받은 브랜치/커밋으로 이동
+        # (Workflow parameter 사용)
+        git checkout {{workflow.parameters.git-sha}}
+        
+        echo "✅ Checkout complete at $(git rev-parse --short HEAD)"
+      volumeMounts:
+      - name: work-pvc
+        mountPath: /mnt/workspace
+
+  # 3. [Init Env] UV로 의존성 설치
+  - name: init-uv-env
+    container:
+      image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+      workingDir: /mnt/workspace/source
+      command: ["/bin/sh", "-c"]
+      args:
+      - |
+        echo "🚀 [Init] Setting up environment..."
+        
+        # 1. 가상환경 생성
+        uv venv /mnt/workspace/.venv --allow-existing
+        
+        # SSL 에러 무시 옵션
+        UV_FLAGS="--allow-insecure-host pypi.org --allow-insecure-host files.pythonhosted.org"
+
+        echo "📦 Installing dependencies..."
+
+        # ▼▼▼ [수정 포인트] ▼▼▼
+        # 1. '/mnt/workspace/.venv/bin/uv' -> 그냥 'uv' 사용
+        # 2. '--python /mnt/workspace/.venv' 옵션으로 설치 위치 지정
+        
+        if [ -f "requirements.txt" ]; then
+          uv pip install -r requirements.txt --python /mnt/workspace/.venv $UV_FLAGS
+        else
+          echo "⚠️ No requirements.txt found. Installing defaults..."
+          uv pip install pandas numpy scikit-learn joblib --python /mnt/workspace/.venv $UV_FLAGS
+        fi
+        
+        echo "✅ Environment setup complete."      
+      volumeMounts:
+      - name: work-pvc
+        mountPath: /mnt/workspace
+
+  # 4. [Run File] 레포지토리 내 특정 파일 실행
+  - name: run-repo-file
+    container:
+      image: python:3.11-slim-bookworm
+      workingDir: /mnt/workspace/source
+      command: ["/bin/sh", "-c"]
+      args:
+      - |
+        echo "🔥 [Run] Executing target script..."
+        
+        # [수정] source 대신 가상환경 내의 python을 직접 호출
+        PYTHON_EXEC="/mnt/workspace/.venv/bin/python"
+        
+        if [ -f "main.py" ]; then
+          $PYTHON_EXEC main.py
+        else
+          echo "Error: main.py not found in repo!"
+          ls -al
+          exit 1
+        fi
+      volumeMounts:
+      - name: work-pvc
+        mountPath: /mnt/workspace
